@@ -1,0 +1,68 @@
+name: Build & Upload APK to GoFile
+
+on:
+  push:
+    branches:  # runs when you push to ['main' 'sohanDev_1.0'] branch
+      - main
+
+  workflow_dispatch:    # lets you run it manually from GitHub
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.5'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Install jq (tool to read JSON)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Upload APK to GoFile
+        id: upload
+        run: |
+          FILE="build/app/outputs/flutter-apk/app-release.apk"
+          
+          # Step 1: Ask GoFile which server to use
+          SERVER_RESPONSE=$(curl -s https://api.gofile.io/servers)
+          SERVER=$(echo "$SERVER_RESPONSE" | jq -r '.data.servers[0].name')
+          
+          if [ "$SERVER" = "null" ] || [ -z "$SERVER" ]; then
+            echo "❌ Failed to get GoFile server"
+            exit 1
+          fi
+          
+          echo "📡 Uploading to server: $SERVER"
+
+          # Step 2: Upload file
+          UPLOAD_RESPONSE=$(curl -s -F "file=@$FILE" "https://$SERVER.gofile.io/contents/uploadfile")
+          DOWNLOAD_PAGE=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.downloadPage')
+          DIRECT_LINK=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.directLink')
+
+          if [ "$DOWNLOAD_PAGE" = "null" ] || [ -z "$DOWNLOAD_PAGE" ]; then
+            echo "❌ Upload failed!"
+            echo "Response: $UPLOAD_RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Success! Saving links..."
+          echo "download_url=$DOWNLOAD_PAGE" >> $GITHUB_OUTPUT
+          echo "direct_url=$DIRECT_LINK" >> $GITHUB_OUTPUT
+
+      - name: Show Download Link
+        run: |
+          echo ""
+          echo "🎉 Your APK is ready!"
+          echo "📄 View & Share: ${{ steps.upload.outputs.download_url }}"
+          echo "🔗 Direct Download: ${{ steps.upload.outputs.direct_url }}"
