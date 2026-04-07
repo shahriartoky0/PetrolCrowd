@@ -1,49 +1,59 @@
-import 'dart:convert';
 import 'package:get_storage/get_storage.dart';
 
 /// Generic TTL cache backed by GetStorage (persists across app restarts).
-/// Key format: "stations_lat_lon" (rounded to 3dp ≈ 111m precision).
+/// The box is accessed lazily — never before GetStorage.init('petrol_cache')
+/// has finished in main().
 class CacheService {
   static const Duration _defaultTtl = Duration(minutes: 15);
 
-  final GetStorage _box = GetStorage('petrol_cache');
+  // ── Lazy getter — safe against init() race ─────────────────────
+  GetStorage get _box => GetStorage('petrol_cache');
 
   // ─── Public API ───────────────────────────────────────────────
 
   /// Returns cached value or null if missing / expired.
   T? get<T>(String key, T Function(dynamic raw) decoder) {
-    final wrapper = _box.read<Map?>(key);
-    if (wrapper == null) return null;
-
-    final expiry = DateTime.tryParse(wrapper['expiry'] as String? ?? '');
-    if (expiry == null || DateTime.now().isAfter(expiry)) {
-      _box.remove(key);
-      return null;
-    }
-
     try {
+      final wrapper = _box.read<Map?>(key);
+      if (wrapper == null) return null;
+
+      final expiry = DateTime.tryParse(wrapper['expiry'] as String? ?? '');
+      if (expiry == null || DateTime.now().isAfter(expiry)) {
+        _box.remove(key);
+        return null;
+      }
+
       return decoder(wrapper['data']);
     } catch (_) {
-      _box.remove(key);
+      // Corrupt entry — wipe it silently
+      try { _box.remove(key); } catch (_) {}
       return null;
     }
   }
 
   /// Stores value with TTL.
   Future<void> set(
-    String key,
-    dynamic data, {
-    Duration ttl = _defaultTtl,
-  }) async {
-    await _box.write(key, {
-      'data': data,
-      'expiry': DateTime.now().add(ttl).toIso8601String(),
-    });
+      String key,
+      dynamic data, {
+        Duration ttl = _defaultTtl,
+      }) async {
+    try {
+      await _box.write(key, {
+        'data': data,
+        'expiry': DateTime.now().add(ttl).toIso8601String(),
+      });
+    } catch (_) {
+      // Non-fatal — app works fine without caching
+    }
   }
 
-  Future<void> remove(String key) => _box.remove(key);
+  Future<void> remove(String key) async {
+    try { await _box.remove(key); } catch (_) {}
+  }
 
-  Future<void> clear() => _box.erase();
+  Future<void> clear() async {
+    try { await _box.erase(); } catch (_) {}
+  }
 
   // ─── Station-specific helpers ─────────────────────────────────
 

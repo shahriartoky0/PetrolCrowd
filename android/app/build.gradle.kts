@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.petrol_crowd"
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion  // Required by geolocator & url_launcher on Android
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

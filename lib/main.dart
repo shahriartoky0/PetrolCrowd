@@ -8,8 +8,6 @@ import 'core/routes/app_routes.dart';
 import 'core/themes/theme.dart';
 import 'core/themes/theme_manager.dart';
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -19,38 +17,44 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Transparent status bar so map bleeds through
+  // Transparent status bar
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
 
+  // Init default GetStorage box
   await GetStorage.init();
-  await GetStorage.init('petrol_cache'); // station cache bucket
 
-  final ThemeManager themeManager = Get.put(ThemeManager());
+  // Init station-cache box — wrapped so a storage failure never
+  // blocks startup (app degrades to network-only mode gracefully)
+  try {
+    await GetStorage.init('petrol_cache');
+  } catch (_) {
+    // Non-fatal — caching will be skipped silently
+  }
 
-  runApp(MyApp(themeManager: themeManager));
+  // Register theme manager before runApp
+  Get.put(ThemeManager());
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.themeManager});
-
-  final ThemeManager themeManager;
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => GetMaterialApp(
-        key: navigatorKey,
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.getTheme(ThemeMode.light),
-        darkTheme: AppTheme.getTheme(ThemeMode.dark),
-        themeMode: themeManager.currentThemeMode,
-        initialRoute: AppRoutes.map,
-        getPages: AppPages.routes,
-      ),
+    // GetX automatically reacts to theme changes without wrapping
+    // the entire MaterialApp in Obx — which caused blank-frame flashes.
+    return GetMaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.getTheme(ThemeMode.light),
+      darkTheme: AppTheme.getTheme(ThemeMode.dark),
+      themeMode: ThemeMode.light,
+      initialRoute: AppRoutes.map,
+      getPages: AppPages.routes,
     );
   }
 }

@@ -190,7 +190,7 @@ class StationBottomSheet extends StatelessWidget {
               // Share / copy
               const SizedBox(width: 8),
               _IconActionButton(
-                icon: Icons.ios_share_rounded,
+                icon: Icons.link,
                 color: const Color(0xFF9E9E9E),
                 tooltip: 'Copy link',
                 onTap: () => _copyInfo(context),
