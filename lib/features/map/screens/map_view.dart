@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
@@ -13,28 +14,31 @@ class MapView extends GetView<PetrolMapController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
-      body: Column(
-        children: [
-          // ── Safe-area header ──────────────────────────────────
-          _AppHeader(controller: controller),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0F0F1A),
+        body: Column(
+          children: [
+            // ── Safe-area header ──────────────────────────────────
+            _AppHeader(controller: controller),
 
-          // ── Tab bar ───────────────────────────────────────────
-          _TabBar(controller: controller),
+            // ── Tab bar ───────────────────────────────────────────
+            _TabBar(controller: controller),
 
-          // ── Body (map or list) ────────────────────────────────
-          Expanded(
-            child: Obx(() {
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: controller.activeTab.value == AppTab.map
-                    ? _MapTab(key: const ValueKey('map'), controller: controller)
-                    : _ListTab(key: const ValueKey('list'), controller: controller),
-              );
-            }),
-          ),
-        ],
+            // ── Body (map or list) ────────────────────────────────
+            Expanded(
+              child: Obx(() {
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: controller.activeTab.value == AppTab.map
+                      ? _MapTab(key: const ValueKey('map'), controller: controller)
+                      : _ListTab(key: const ValueKey('list'), controller: controller),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }
