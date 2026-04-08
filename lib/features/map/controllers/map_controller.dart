@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
+
 import '../models/station_model.dart';
 import '../services/overpass_service.dart';
 import '../services/route_service.dart';
@@ -46,9 +47,14 @@ class PetrolMapController extends GetxController {
 
   // ─── Lifecycle ────────────────────────────────────────────────
 
+  // @override
+  // void onInit() {
+  //   super.onInit();
+  //   _initLocation();
+  // }
   @override
-  void onInit() {
-    super.onInit();
+  void onReady() {
+    super.onReady();
     _initLocation();
   }
 
@@ -79,6 +85,7 @@ class PetrolMapController extends GetxController {
 
   void setTab(AppTab tab) => activeTab.value = tab;
 
+  @override
   Future<void> refresh() async {
     stations.clear();
     selectedStation.value = null;
@@ -137,8 +144,8 @@ class PetrolMapController extends GetxController {
     } finally {
       isLoadingLocation.value = false;
     }
-
-    await _fetchStations(userLocation.value!, forceRefresh: forceRefresh);
+    final loc = userLocation.value ?? fallbackLatLng;
+    await _fetchStations(loc, forceRefresh: forceRefresh);
   }
 
   Future<Position> _determinePosition() async {
@@ -155,16 +162,22 @@ class PetrolMapController extends GetxController {
       throw Exception('Location permission denied.');
     }
 
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 15),
-      ),
-    );
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+    } catch (e) {
+      throw Exception('Failed to get location');
+    }
   }
 
-  Future<void> _fetchStations(LatLng location,
-      {bool forceRefresh = false}) async {
+  Future<void> _fetchStations(
+    LatLng location, {
+    bool forceRefresh = false,
+  }) async {
     isLoadingStations.value = true;
     errorMessage.value = '';
     try {
